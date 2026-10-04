@@ -345,6 +345,7 @@
     const consumption = energySummary(rows);
     const hasMeasurements = rows.some(row => fields.some(field => row[field] !== null));
     $('boiler-view').hidden = prices;
+    $('boiler-intro').hidden = prices;
     $('prices-view').hidden = !prices;
     $('month-summary').hidden = prices;
     $('latest-day').hidden = prices;
