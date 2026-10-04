@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#246b5b">
+  <title>Pannu — lämpötilat ja kulutus</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="data.js" defer></script>
+  <script src="csv-parser.js" defer></script>
+  <script src="price-service.js" defer></script>
+  <script src="browser-prices.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="index.html" aria-label="Pannu, etusivu"><img src="favicon.svg" width="38" height="38" alt=""><span>Pannu<span class="brand-caption">LÄMPÖTILASEURANTA</span></span></a>
+    <div class="top-meta"><span class="status-dot"></span> CSV-mittaustiedot <span class="top-divider"></span><button class="plain-button" id="help-button">Käyttöohje <span aria-hidden="true">↗</span></button></div>
+  </header>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Päivän valinta">
+      <div class="sidebar-title"><span class="eyebrow">MITTAUSHISTORIA</span><span class="archive-icon" aria-hidden="true">▤</span></div>
+      <h2>Valitse päivä</h2><p class="muted intro">Mittaukset ja sähkön hinnat päivä kerrallaan.</p>
+      <div class="date-shortcuts"><button id="today-day" class="secondary-button">Tänään</button><button id="tomorrow-day" class="secondary-button">Huomenna</button></div>
+      <label class="field-label" for="date-input">Päivämäärä · myös tulevat päivät</label>
+      <input id="date-input" type="date">
+      <label class="field-label" for="month-select">Kuukausi</label>
+      <select id="month-select"></select>
+      <div class="available-months"><span class="field-label">Mittauksia saatavilla</span><div id="available-months" class="available-month-buttons" aria-label="Kuukaudet, joilta on mittauksia"></div><p id="available-months-empty" class="muted" hidden>Ei mittauksia vielä.</p></div>
+      <div class="calendar-header"><strong id="calendar-month"></strong><div class="arrow-group"><button class="icon-button" id="prev-month" aria-label="Edellinen kuukausi">‹</button><button class="icon-button" id="next-month" aria-label="Seuraava kuukausi">›</button></div></div>
+      <div class="weekdays" aria-hidden="true"><span>Ma</span><span>Ti</span><span>Ke</span><span>To</span><span>Pe</span><span>La</span><span>Su</span></div>
+      <div id="calendar" class="calendar" aria-label="Kuukauden päivät"></div>
+      <p class="calendar-key"><span class="tiny-dot"></span> CSV-mittauksia saatavilla</p><p class="calendar-hint">Voit valita minkä tahansa päivän. Hinnat näytetään, jos ne löytyvät API:sta.</p>
+      <div id="month-summary" class="month-summary"><span class="field-label">KUUKAUDEN YHTEENVETO</span><div class="month-stat"><span>Päiviä mitattu</span><strong id="month-days">—</strong></div><button type="button" id="month-min-button" class="month-stat month-extreme" disabled><span>Alin lämpötila</span><strong id="month-min">—</strong><span class="month-extreme-arrow" aria-hidden="true">↗</span></button><button type="button" id="month-max-button" class="month-stat month-extreme" disabled><span>Ylin lämpötila</span><strong id="month-max">—</strong><span class="month-extreme-arrow" aria-hidden="true">↗</span></button><div class="month-stat" hidden><span>Sähkönkulutus</span><strong id="month-consumption">—</strong></div><p id="month-consumption-count" class="import-note" hidden></p></div>
+      <div class="import-card"><div class="import-symbol" aria-hidden="true">＋</div><h3>Lisää mittaustietoja</h3><p>Tuo uusia päiviä tai kuukausia CSV-tiedostoista.</p><button class="secondary-button" id="import-button">Valitse CSV-tiedostot <span aria-hidden="true">↑</span></button><input id="file-input" type="file" accept=".csv" multiple hidden><button class="text-button" id="folder-button">Tai valitse kokonainen kansio</button><input id="folder-input" type="file" webkitdirectory multiple hidden><p class="import-note">Tuodut tiedot tallentuvat tähän selaimeen.</p><button class="text-button" id="reset-imports" hidden>Poista selaimeen tuodut tiedot</button></div>
+      <p class="source-label"><span id="source-name">Lähteet: Pannun_Anturi ja Consumption</span><span id="source-count"></span></p>
+      <div class="backup-card"><h3>Tallenna ja palauta</h3><p>Kaikki mittaukset ja tallennetut sähkön hinnat yhdessä tiedostossa.</p><button id="backup-export" class="secondary-button">Vie kaikki tiedot <span aria-hidden="true">↓</span></button><button id="backup-import" class="secondary-button">Tuo tallennetut tiedot <span aria-hidden="true">↑</span></button><input id="backup-input" type="file" accept=".json,application/json" hidden></div>
+      <div class="backup-card"><h3>Pannut</h3><label class="field-label boiler-select-label" for="boiler-select">Valitse pannu</label><select id="boiler-select"></select><p id="boiler-profile-note"></p><button id="switch-boiler" class="secondary-button" type="button">Uusi pannu</button><button id="rename-boiler" class="secondary-button" type="button">Nimeä uudelleen</button><button id="delete-boiler" class="secondary-button" type="button">Poista pannu</button><button id="restore-model" class="text-button" type="button" hidden>Näytä mallipannu</button></div>
+    </aside>
+    <main>
+      <div class="view-tabs" role="tablist" aria-label="Seurannan näkymä">
+        <button id="boiler-tab" role="tab" aria-selected="true" aria-controls="boiler-view" tabindex="0">Pannun seuranta</button>
+        <button id="prices-tab" role="tab" aria-selected="false" aria-controls="prices-view" tabindex="-1">Pörssisähkö</button>
+      </div>
+      <div class="page-heading"><div><div id="view-eyebrow" class="eyebrow heading-eyebrow">ÖLJYPANNUN LÄMPÖTILAT JA KULUTUS</div><h1 id="day-title">Lämpötilaseuranta</h1><p id="day-subtitle" class="muted">Ladataan mittaustietoja…</p></div><div class="day-navigation"><button class="icon-button" id="prev-day" aria-label="Edellinen päivä">‹</button><button class="today-button" id="latest-day">Viimeisin mittaus</button><button class="icon-button" id="next-day" aria-label="Seuraava päivä">›</button></div></div>
+      <div id="notice" class="notice" role="status" hidden></div>
+      <div id="boiler-view" role="tabpanel" aria-labelledby="boiler-tab">
+      <p id="no-measurements" class="notice" hidden>Tältä päivältä ei ole pannun mittauksia.</p>
+      <section id="temperature-summary" class="stats" aria-label="Valitun päivän yhteenveto">
+        <article class="stat-card"><div class="stat-label"><span class="legend-dot low"></span>Päivän alin lämpötila<span class="stat-symbol low-text" aria-hidden="true">↘</span></div><div class="stat-value low-text" id="day-min">—</div><div class="stat-detail" id="day-min-time">—</div></article>
+        <article class="stat-card"><div class="stat-label"><span class="legend-dot high"></span>Päivän ylin lämpötila<span class="stat-symbol high-text" aria-hidden="true">↗</span></div><div class="stat-value high-text" id="day-max">—</div><div class="stat-detail" id="day-max-time">—</div></article>
+        <article class="stat-card"><div class="stat-label">Suurin tunnin vaihtelu<span class="stat-symbol" aria-hidden="true">↕</span></div><div class="stat-value" id="day-range">—</div><div class="stat-detail" id="day-range-time">Ylimmän ja alimman lukeman ero</div></article>
+      </section>
+      <section id="temperature-panel" class="panel chart-panel" aria-labelledby="chart-title">
+        <div class="panel-heading"><div><h2 id="chart-title">Pannun -lämpötilat päivän aikana</h2><p>Tunnin alin ja ylin mitattu lämpötila</p></div><div class="segmented" aria-label="Kuvaajan aikaväli"><button data-range="all" class="active" aria-pressed="true">Koko päivä</button><button data-range="morning" aria-pressed="false">00–08</button><button data-range="day" aria-pressed="false">08–16</button><button data-range="evening" aria-pressed="false">16–24</button></div></div>
+        <div class="chart-meta"><span>Lämpötila (°C)</span><div class="legend"><span><i class="legend-dot high"></i> Ylin</span><span><i class="legend-dot low"></i> Alin</span><span class="band-legend"><i></i> Vaihteluväli</span></div></div>
+        <div id="chart-container" class="chart-container"><svg id="chart" viewBox="0 0 900 270" role="img" aria-labelledby="chart-svg-title chart-svg-desc"></svg><div id="chart-tooltip" class="chart-tooltip" hidden></div></div>
+        <div class="chart-footer"><span><span class="small-info" aria-hidden="true">i</span> Näet tarkat lukemat osoittamalla kuvaajaa tai valitsemalla tunnin.</span><span>Kellonaika</span></div>
+        <div class="hour-inspector"><label for="hour-select">Tarkastele tuntia</label><select id="hour-select" aria-label="Tarkasteltava tunti"></select><span id="hour-values" aria-live="polite"></span></div>
+      </section>
+      <section id="consumption-panel" class="panel energy-panel" aria-labelledby="energy-title">
+        <div class="panel-heading"><div><h2 id="energy-title">Lämmitystapa päivän aikana</h2><p>Tuntikohtainen lämmitystapa ja polttimen tila</p></div><span id="energy-range" class="energy-range">Koko päivä</span></div>
+        <div class="energy-stats">
+          <article hidden><span class="field-label">Päivän sähkönkulutus</span><strong id="day-consumption">—</strong><span id="consumption-count" class="energy-detail"></span></article>
+          <article><span class="field-label"><i class="legend-dot oil"></i> Öljy · poltin päällä</span><strong><span id="oil-hours">—</span><span id="oil-share" class="heating-share">—</span></strong><span class="energy-detail">Öljykäytöksi luokitellut tunnit</span></article>
+          <article><span class="field-label"><i class="legend-dot electric"></i> Sähkö · poltin pois päältä</span><strong><span id="electric-hours">—</span><span id="electric-share" class="heating-share">—</span></strong><span class="energy-detail">Sähkövastuksilla lämmitetyt tunnit</span></article>
+        </div>
+        <p id="heating-share-note" class="heating-share-note"></p>
+        <p id="heating-feedback" class="heating-feedback" role="status" hidden></p>
+        <div class="chart-meta"><span>Lämmitystapa</span><div class="legend"><span><i class="legend-dot oil"></i> Öljy</span><span><i class="legend-dot electric"></i> Sähkö</span><span><i class="legend-dot boundary"></i> Raja-arvo</span></div></div>
+        <div id="energy-chart-container" class="chart-container"><svg id="energy-chart" viewBox="0 0 900 210" role="img" aria-labelledby="energy-svg-title energy-svg-desc"></svg><div id="energy-tooltip" class="chart-tooltip" hidden></div></div>
+        <div class="hour-inspector energy-hour-inspector"><label for="energy-hour-select">Tarkastele tuntia</label><select id="energy-hour-select" aria-label="Kulutuksen tarkasteltava tunti"></select><span id="energy-hour-values" aria-live="polite"></span></div>
+        <p class="energy-explanation">Oranssi tarkoittaa öljykäyttöä ja vihreä sähkövastuksia.</p>
+      </section>
+      </div>
+      <div id="prices-view" role="tabpanel" aria-labelledby="prices-tab" hidden>
+      <section class="panel price-panel" aria-labelledby="price-title">
+        <div class="panel-heading"><div><h2 id="price-title">Pörssisähkön tuntihinta</h2><p>Valitun päivän hinnat · snt/kWh</p></div><div class="price-tools"><div class="segmented" aria-label="Hintakuvaajan aikaväli"><button data-range="all" class="active" aria-pressed="true">Koko päivä</button><button data-range="morning" aria-pressed="false">00–08</button><button data-range="day" aria-pressed="false">08–16</button><button data-range="evening" aria-pressed="false">16–24</button></div><button id="refresh-prices" class="secondary-button"><span aria-hidden="true">↻</span> Päivitä hinnat</button></div></div>
+        <div id="price-status" class="price-status" role="status">Valitse päivä nähdäksesi hinnat.</div>
+        <div class="energy-stats price-stats">
+          <article><span class="field-label">Päivän halvin tunti</span><strong id="price-min">—</strong><span id="price-min-time" class="energy-detail"></span></article>
+          <article><span class="field-label">Päivän kallein tunti</span><strong id="price-max">—</strong><span id="price-max-time" class="energy-detail"></span></article>
+          <article><span class="field-label" id="price-average-label">Päivän tuntihintojen keskiarvo</span><strong id="price-average">—</strong><span id="price-count" class="energy-detail"></span></article>
+        </div>
+        <div class="chart-meta"><span>Hinta (snt/kWh)</span><span id="price-range">Koko päivä</span></div>
+        <div id="price-chart-container" class="chart-container"><svg id="price-chart" viewBox="0 0 900 270" role="img" aria-labelledby="price-svg-title price-svg-desc"></svg><div id="price-tooltip" class="chart-tooltip" hidden></div></div>
+        <div class="hour-inspector price-hour-inspector"><label for="price-hour-select">Tarkastele tuntia</label><select id="price-hour-select" aria-label="Pörssisähkön tarkasteltava tunti"></select><span id="price-hour-values" aria-live="polite"></span></div>
+        <p class="price-explanation"><a id="price-source-link" href="https://sahkonhinta-api.azurewebsites.net/api/GetPrice?date=2026-01-01&amp;hour=00" target="_blank" rel="noopener noreferrer">Valitun tunnin API-vastaus ↗</a></p>
+      </section>
+      </div>
+      <section id="table-panel" class="panel table-panel" aria-labelledby="table-title">
+        <div class="panel-heading"><div><h2 id="table-title">Tuntikohtaiset lukemat</h2><p id="table-caption">Kaikki päivän mittaukset</p></div><button id="export-button" class="secondary-button"><span aria-hidden="true">↓</span> Lataa CSV</button></div>
+        <div class="table-scroll"><table><caption class="sr-only" id="table-accessible-caption">Valitun päivän tuntikohtaiset lämpötilat, kulutus, sähkön hinta ja polttimen tila</caption><thead><tr><th scope="col">Kellonaika</th><th scope="col"><span class="legend-dot low"></span> Alin lämpötila</th><th scope="col"><span class="legend-dot high"></span> Ylin lämpötila</th><th scope="col">Vaihteluväli <span class="unit">(°C)</span></th><th scope="col">Sähkönkulutus <span class="unit">(Wh)</span></th><th scope="col">Pörssisähkö <span class="unit">(snt/kWh)</span></th><th scope="col">Lämmitystapa / poltin</th></tr></thead><tbody id="readings-table"></tbody></table></div>
+        <div class="table-footer"><span id="reading-count"></span><span>— = lukema puuttuu</span></div>
+      </section>
+      <footer class="page-footer"><span>Pannu <span class="footer-dot">·</span> Selkeä näkymä lämpötiloihin</span><span>Alkuperäisten CSV-tiedostojen kellonajat</span></footer>
+    </main>
+  </div>
+  <dialog id="help-dialog">
+    <div class="dialog-heading"><h2>Näin käytät seurantaa</h2><button id="close-help" class="icon-button" aria-label="Sulje ohje">×</button></div>
+    <p><strong>Valitse päivä</strong> kalenterista tai päivämäärävalitsimesta. Tänään ja Huomenna -painikkeilla pääset suoraan kyseiseen päivään.</p>
+    <p><strong>Tarkastele tuntia</strong> osoittamalla kuvaajaa tai valitsemalla tunti sen alta. Taulukossa näet päivän tuntikohtaiset lukemat.</p>
+    <p><strong>Oranssi = öljylämmitys, poltin päällä.</strong><br><strong>Vihreä = sähkövastukset, poltin pois päältä.</strong></p>
+    <p><strong>Pannun seuranta</strong> näyttää lämpötilat ja lämmitystavan. <strong>Pörssisähkö</strong>-välilehdellä näet tuntihinnat. Päivitä hinnat hakee hinnat uudelleen.</p>
+    <p><strong>Lisää mittauksia</strong> Valitse CSV-tiedostot -painikkeella. Tuodut tiedot säilyvät vain tässä selaimessa, eikä niitä lähetetä palvelimelle. Lataa CSV tallentaa valitun päivän tiedot. Paikallisessa versiossa CSV-kansioiden muutokset näkyvät sivun päivityksellä; verkkoversiossa Mallipannun lähdeaineisto päivitetään uudella julkaisulla.</p>
+    <p><strong>Vie kaikki tiedot</strong> tallentaa tiedot yhteen tiedostoon. Voit hakea mukaan sähkön hinnat valitsemaltasi ajalta. Hintapalvelun tauon jälkeen haku jatkuu automaattisesti. Palauta tiedosto painikkeella <strong>Tuo tallennetut tiedot</strong>.</p>
+    <p><strong>Pannut</strong>-kohdassa voit vaihtaa, nimetä tai poistaa pannun. <strong>Uusi pannu</strong> avaa tyhjän pannun. Lisää sen tiedot painikkeella <strong>Tuo tallennetut tiedot</strong>.</p>
+    <p><strong>Verkkoversiossa Mallipannun aineisto on julkinen.</strong> Hintapalveluun lähetetään vain haettava päivämäärä ja tunti, ei pannun nimeä tai mittauksia. Selain- ja laitekohtaiset tiedot siirretään Vie kaikki tiedot / Tuo tallennetut tiedot -toiminnoilla.</p>
+  </dialog>
+  <dialog id="backup-dialog" aria-labelledby="backup-title">
+    <div class="dialog-heading"><h2 id="backup-title">Vie kaikki tiedot</h2><button id="close-backup" class="icon-button" aria-label="Sulje vienti">×</button></div>
+    <p>Valitun pannun mittaukset ja tallennetut sähkön hinnat sisältyvät tiedostoon.</p>
+    <label class="backup-option"><input id="backup-fetch-prices" type="checkbox"> Vie lisäksi pörssisähkön tuntihinnat valitulta ajalta</label>
+    <div id="backup-date-range" class="backup-date-range" hidden>
+      <div><label class="field-label" for="backup-from">Alkamispäivä</label><input id="backup-from" type="date" min="0001-01-01" max="9999-12-31"></div>
+      <div><label class="field-label" for="backup-to">Päättymispäivä</label><input id="backup-to" type="date" min="0001-01-01" max="9999-12-31"></div>
+      <p class="backup-range-note">Hintahaku enintään 366 päivältä kerrallaan.</p>
+    </div>
+    <p id="backup-offline" hidden>Hintojen haku toimii julkaistulla verkkosivulla tai Avaa-sivusto.cmd-tiedostosta avatulla paikallisella sivustolla.</p>
+    <p id="backup-cooldown" role="status" hidden></p>
+    <p id="backup-progress" role="status" aria-live="polite"></p>
+    <p id="backup-resume-note" hidden></p>
+    <div class="backup-actions"><button id="backup-download" class="secondary-button">Vie tiedosto</button><button id="backup-stop" class="secondary-button" hidden>Keskeytä haku ja vie saadut tiedot</button><button id="backup-resume" class="secondary-button" hidden>Jatka keskeneräistä hakua</button></div>
+  </dialog>
+  <dialog id="boiler-dialog" aria-labelledby="boiler-dialog-title">
+    <div class="dialog-heading"><h2 id="boiler-dialog-title">Uusi pannu</h2><button id="close-boiler-dialog" class="icon-button" aria-label="Sulje">×</button></div>
+    <form id="boiler-form"><label class="field-label" for="boiler-name">Pannun nimi</label><input id="boiler-name" type="text" maxlength="60" required autocomplete="off"><p id="boiler-name-error" role="status" hidden></p><div class="backup-actions"><button id="save-boiler" class="secondary-button" type="submit">Luo pannu</button></div></form>
+  </dialog>
+  <dialog id="delete-boiler-dialog" aria-labelledby="delete-boiler-title">
+    <div class="dialog-heading"><h2 id="delete-boiler-title">Poista pannu?</h2><button id="close-delete-boiler" class="icon-button" aria-label="Sulje">×</button></div>
+    <p id="delete-boiler-note"></p><div class="backup-actions"><button id="cancel-delete-boiler" class="secondary-button" type="button">Peruuta</button><button id="confirm-delete-boiler" class="secondary-button" type="button">Poista pannu</button></div>
+  </dialog>
+  <noscript><p class="notice">Ota JavaScript käyttöön, jotta voit tarkastella mittaustietoja.</p></noscript>
+</body>
+</html>
