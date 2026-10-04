@@ -22,9 +22,11 @@
     <aside class="sidebar sidebar-calendar" aria-label="Päivän valinta">
       <div class="sidebar-title"><span class="eyebrow">MITTAUSHISTORIA</span><span class="archive-icon" aria-hidden="true">▤</span></div>
       <h2>Valitse päivä</h2><p class="muted intro">Mittaukset ja sähkön hinnat päivä kerrallaan.</p>
-      <div class="date-shortcuts"><button id="today-day" class="secondary-button">Tänään</button><button id="tomorrow-day" class="secondary-button">Huomenna</button></div>
       <label class="field-label" for="date-input">Päivämäärä · myös tulevat päivät</label>
       <input id="date-input" type="date">
+      <details id="calendar-details" class="mobile-disclosure" open>
+      <summary>Kalenteri ja mittauspäivät</summary>
+      <div class="disclosure-content">
       <label class="field-label" for="month-select">Kuukausi</label>
       <select id="month-select"></select>
       <div class="available-months"><span class="field-label">Mittauksia saatavilla</span><div id="available-months" class="available-month-buttons" aria-label="Kuukaudet, joilta on mittauksia"></div><p id="available-months-empty" class="muted" hidden>Ei mittauksia vielä.</p></div>
@@ -33,6 +35,8 @@
       <div id="calendar" class="calendar" aria-label="Kuukauden päivät"></div>
       <p class="calendar-key"><span class="tiny-dot"></span> CSV-mittauksia saatavilla</p><p class="calendar-hint">Voit valita minkä tahansa päivän. Hinnat näytetään, jos ne löytyvät API:sta.</p>
       <div id="month-summary" class="month-summary"><span class="field-label">MITTAUSTEN YHTEENVETO</span><div class="month-stat"><span>Päiviä tässä kuussa</span><strong id="month-days">—</strong></div><button type="button" id="day-summary-min-button" class="month-stat day-extreme" disabled><span>Päivän alin lämpötila</span><strong id="day-summary-min">—</strong><span class="day-extreme-arrow" aria-hidden="true">↗</span></button><button type="button" id="day-summary-max-button" class="month-stat day-extreme" disabled><span>Päivän ylin lämpötila</span><strong id="day-summary-max">—</strong><span class="day-extreme-arrow" aria-hidden="true">↗</span></button><div class="month-stat" hidden><span>Sähkönkulutus</span><strong id="month-consumption">—</strong></div><p id="month-consumption-count" class="import-note" hidden></p></div>
+      </div>
+      </details>
     </aside>
     <main>
       <div class="view-tabs" role="tablist" aria-label="Seurannan näkymä">
@@ -86,9 +90,14 @@
       </section>
       </div>
       <section id="table-panel" class="panel table-panel" aria-labelledby="table-title">
+        <details id="readings-details" class="mobile-disclosure" open>
+        <summary><span id="table-summary-title">Tuntikohtaiset lukemat</span><span class="disclosure-count">24 h</span></summary>
+        <div class="disclosure-content">
         <div class="panel-heading"><div><h2 id="table-title">Tuntikohtaiset lukemat</h2><p id="table-caption">Kaikki päivän mittaukset</p></div><button id="export-button" class="secondary-button"><span aria-hidden="true">↓</span> Lataa CSV</button></div>
         <div class="table-scroll"><table><caption class="sr-only" id="table-accessible-caption">Valitun päivän tuntikohtaiset lämpötilat, kulutus, sähkön hinta ja polttimen tila</caption><thead><tr><th scope="col">Kellonaika</th><th scope="col"><span class="legend-dot low"></span> Alin lämpötila</th><th scope="col"><span class="legend-dot high"></span> Ylin lämpötila</th><th scope="col">Vaihteluväli <span class="unit">(°C)</span></th><th scope="col">Sähkönkulutus <span class="unit">(Wh)</span></th><th scope="col">Pörssisähkö <span class="unit">(snt/kWh)</span></th><th scope="col">Lämmitystapa / poltin</th></tr></thead><tbody id="readings-table"></tbody></table></div>
         <div class="table-footer"><span id="reading-count"></span><span>— = lukema puuttuu</span></div>
+        </div>
+        </details>
       </section>
       <footer class="page-footer"><span>Pannu <span class="footer-dot">·</span> Selkeä näkymä lämpötiloihin</span><span>Alkuperäisten CSV-tiedostojen kellonajat</span></footer>
     </main>
@@ -101,8 +110,8 @@
   </div>
   <dialog id="help-dialog">
     <div class="dialog-heading"><h2>Näin käytät seurantaa</h2><button id="close-help" class="icon-button" aria-label="Sulje ohje">×</button></div>
-    <p><strong>Valitse päivä</strong> kalenterista tai päivämäärävalitsimesta. Tänään ja Huomenna -painikkeilla pääset suoraan kyseiseen päivään.</p>
-    <p><strong>Tarkastele tuntia</strong> osoittamalla kuvaajaa tai valitsemalla tunti sen alta. Taulukossa näet päivän tuntikohtaiset lukemat.</p>
+    <p><strong>Valitse päivä</strong> päivämäärävalitsimesta tai päivän nuolilla. Mobiilissa <strong>Kalenteri ja mittauspäivät</strong> avaa kalenterin yhdellä napautuksella. Päivän valinta sulkee kalenterin ja tuo yhteenvedon lähemmäs.</p>
+    <p><strong>Tarkastele tuntia</strong> osoittamalla kuvaajaa tai valitsemalla tunti sen alta. Mobiilissa avaa kuvaajien alta <strong>Tuntikohtaiset lukemat</strong> tai <strong>Tuntikohtaiset sähkön hinnat</strong> nähdäksesi kaikki 24 tuntia ja Lataa CSV -painikkeen.</p>
     <p><strong>Oranssi = öljylämmitys, poltin päällä.</strong><br><strong>Vihreä = sähkövastukset, poltin pois päältä.</strong></p>
     <p><strong>Pannun seuranta</strong> näyttää lämpötilat ja lämmitystavan. <strong>Pörssisähkö</strong>-välilehdellä näet tuntihinnat. Päivitä hinnat hakee hinnat uudelleen.</p>
     <p><strong>Lisää mittauksia</strong> Valitse CSV-tiedostot -painikkeella. Tuodut tiedot säilyvät vain tässä selaimessa, eikä niitä lähetetä palvelimelle. Lataa CSV tallentaa valitun päivän tiedot. Paikallisessa versiossa CSV-kansioiden muutokset näkyvät sivun päivityksellä; verkkoversiossa Mallipannun lähdeaineisto päivitetään uudella julkaisulla.</p>

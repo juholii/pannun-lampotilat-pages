@@ -1,6 +1,23 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
+  const compactViewport = window.matchMedia('(max-width:620px)');
+  const disclosureIds = ['calendar-details', 'readings-details'];
+  const setDisclosureLayout = () => {
+    for (const id of disclosureIds) $(id).open = !compactViewport.matches;
+  };
+  setDisclosureLayout();
+  compactViewport.addEventListener('change', setDisclosureLayout);
+  let printDisclosureState;
+  window.addEventListener('beforeprint', () => {
+    if (!printDisclosureState) printDisclosureState = disclosureIds.map(id => $(id).open);
+    for (const id of disclosureIds) $(id).open = true;
+  });
+  window.addEventListener('afterprint', () => {
+    if (!printDisclosureState) return;
+    disclosureIds.forEach((id, index) => { $(id).open = printDisclosureState[index]; });
+    printDisclosureState = null;
+  });
   const profileStorageKey = 'pannu-active-profile-v1';
   const profileListStorageKey = 'pannu-profiles-v1';
   const profileControlIds = ['switch-boiler', 'boiler-select', 'rename-boiler', 'delete-boiler', 'restore-model'];
@@ -206,7 +223,7 @@
       button.className = 'available-month-button';
       button.textContent = capitalize(monthName(month));
       button.setAttribute('aria-pressed', String(month === visibleMonth));
-      button.addEventListener('click', () => selectDay(dates.find(date => date.startsWith(month))));
+      button.addEventListener('click', () => selectDay(dates.find(date => date.startsWith(month)), { keepCalendarOpen: true }));
       return button;
     }));
     $('available-months-empty').hidden = availableMonths.length > 0;
@@ -255,13 +272,17 @@
     $('month-consumption').textContent = energy(consumption.total);
     $('month-consumption-count').textContent = `${consumption.count} / ${length * 24} kulutuslukemaa · saatavilla olevien tuntien summa`;
   }
-  function selectDay(date) {
+  function selectDay(date, { keepCalendarOpen = false } = {}) {
     if (!validDay(date)) return;
     selected = date;
     visibleMonth = date.slice(0, 7);
     if (location.hash !== `#${date}`) history.replaceState(null, '', `#${date}`);
     renderCalendar();
     renderDay();
+    if (!keepCalendarOpen && compactViewport.matches && $('calendar-details').open) {
+      $('calendar-details').open = false;
+      $('date-input').focus({ preventScroll: true });
+    }
   }
   function renderDay() {
     $('export-button').disabled = false;
@@ -338,6 +359,7 @@
     $('view-eyebrow').textContent = prices ? 'PÖRSSISÄHKÖN TUNTIHINNAT' : 'PANNUN LÄMPÖTILAT JA LÄMMITYSTAPA';
     $('day-subtitle').textContent = prices ? 'Valitun päivän pörssisähkön tuntihinnat' : hasMeasurements ? `${capitalize(monthName(selected.slice(0, 7)))} · Lämpötilat ${complete}/24 h · Lämmitystapa ${consumption.count}/24 h` : 'Ei pannun mittauksia tältä päivältä';
     $('table-title').textContent = prices ? 'Tuntikohtaiset sähkön hinnat' : 'Tuntikohtaiset lukemat';
+    $('table-summary-title').textContent = $('table-title').textContent;
     $('table-caption').textContent = `${localDate(selected).toLocaleDateString('fi-FI')} · Kaikki 24 tuntia`;
     $('table-accessible-caption').textContent = prices ? `${selected}, pörssisähkön tuntihinnat` : `${selected}, tunnin alin ja ylin lämpötila ja polttimen tila`;
     $('reading-count').textContent = prices ? '24 tuntia · Hinta snt/kWh' : `Lämpötilat ${complete}/24 h · Lämmitystapa ${consumption.count}/24 h`;
@@ -574,7 +596,7 @@
   function switchMonth(direction) {
     const date = new Date(`${visibleMonth}-01T12:00:00Z`);
     date.setUTCMonth(date.getUTCMonth() + direction);
-    selectDay(date.toISOString().slice(0, 10));
+    selectDay(date.toISOString().slice(0, 10), { keepCalendarOpen: true });
   }
   async function importFiles(fileList) {
     const files = [...fileList].filter(file => /\.csv$/i.test(file.name));
@@ -905,12 +927,10 @@
   $('prev-day').addEventListener('click', () => selectDay(shiftDay(selected, -1)));
   $('next-day').addEventListener('click', () => selectDay(shiftDay(selected, 1)));
   $('latest-day').addEventListener('click', () => selectDay(dates.at(-1)));
-  $('today-day').addEventListener('click', () => selectDay(todayKey()));
-  $('tomorrow-day').addEventListener('click', () => selectDay(shiftDay(todayKey(), 1)));
   $('date-input').addEventListener('change', event => { if (validDay(event.target.value)) selectDay(event.target.value); else event.target.value = selected; });
   $('prev-month').addEventListener('click', () => switchMonth(-1));
   $('next-month').addEventListener('click', () => switchMonth(1));
-  $('month-select').addEventListener('change', event => selectDay(`${event.target.value}-01`));
+  $('month-select').addEventListener('change', event => selectDay(`${event.target.value}-01`, { keepCalendarOpen: true }));
   $('day-summary-min-button').addEventListener('click', () => selectDayExtreme('min'));
   $('day-summary-max-button').addEventListener('click', () => selectDayExtreme('max'));
   document.querySelectorAll('[data-range]').forEach(button => button.addEventListener('click', () => {
