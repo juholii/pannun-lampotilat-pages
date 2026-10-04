@@ -235,19 +235,19 @@
     const next = new Date(`${visibleMonth}-01T12:00:00Z`); next.setUTCMonth(next.getUTCMonth() + 1);
     $('next-month').disabled = !validDay(next.toISOString().slice(0, 10));
     const monthDates = dates.filter(date => date.startsWith(visibleMonth));
-    const stats = extremes(monthDates.flatMap(date => days[date]));
+    const rows = selectedRows();
+    const stats = extremes(rows);
     $('month-days').textContent = `${monthDates.length} / ${length}`;
-    $('month-min').textContent = temp(stats.min);
-    $('month-max').textContent = temp(stats.max);
+    $('day-summary-min').textContent = temp(stats.min);
+    $('day-summary-max').textContent = temp(stats.max);
     for (const field of ['min', 'max']) {
-      const button = $(`month-${field}-button`);
-      const targetDate = stats[field] === null ? undefined : monthDates.find(date => days[date].some(row => row[field] === stats[field]));
-      const target = targetDate ? days[targetDate].find(row => row[field] === stats[field]) : null;
+      const button = $(`day-summary-${field}-button`);
+      const target = stats[field] === null ? null : rows.find(row => row[field] === stats[field]);
       button.disabled = !target;
-      button.dataset.date = targetDate || '';
+      button.dataset.date = target ? selected : '';
       button.dataset.hour = target ? String(target.hour) : '';
-      const label = field === 'min' ? 'Alin lämpötila' : 'Ylin lämpötila';
-      const description = target ? `${label} ${temp(stats[field])} · Näytä ${localDate(targetDate).toLocaleDateString('fi-FI')} klo ${hourLabel(target.hour)}` : `${label} · Ei mittauksia tässä kuussa`;
+      const label = field === 'min' ? 'Päivän alin lämpötila' : 'Päivän ylin lämpötila';
+      const description = target ? `${label} ${temp(stats[field])} · Näytä ${localDate(selected).toLocaleDateString('fi-FI')} klo ${hourLabel(target.hour)}` : `${label} · Ei mittauksia valittuna päivänä`;
       button.setAttribute('aria-label', description);
       button.title = description;
     }
@@ -356,8 +356,8 @@
     });
     if (redraw && selected) renderChart();
   }
-  function selectMonthExtreme(field) {
-    const button = $(`month-${field}-button`);
+  function selectDayExtreme(field) {
+    const button = $(`day-summary-${field}-button`);
     if (button.disabled || !validDay(button.dataset.date)) return;
     const date = button.dataset.date;
     selectedHour = Number(button.dataset.hour);
@@ -911,8 +911,8 @@
   $('prev-month').addEventListener('click', () => switchMonth(-1));
   $('next-month').addEventListener('click', () => switchMonth(1));
   $('month-select').addEventListener('change', event => selectDay(`${event.target.value}-01`));
-  $('month-min-button').addEventListener('click', () => selectMonthExtreme('min'));
-  $('month-max-button').addEventListener('click', () => selectMonthExtreme('max'));
+  $('day-summary-min-button').addEventListener('click', () => selectDayExtreme('min'));
+  $('day-summary-max-button').addEventListener('click', () => selectDayExtreme('max'));
   document.querySelectorAll('[data-range]').forEach(button => button.addEventListener('click', () => {
     setRange(button.dataset.range);
   }));
