@@ -263,7 +263,7 @@
       button.disabled = !target;
       button.dataset.date = target ? selected : '';
       button.dataset.hour = target ? String(target.hour) : '';
-      const label = field === 'min' ? 'Päivän alin lämpötila' : 'Päivän ylin lämpötila';
+      const label = field === 'min' ? 'Kattilan päivän alin lämpötila' : 'Kattilan päivän ylin lämpötila';
       const description = target ? `${label} ${temp(stats[field])} · Näytä ${localDate(selected).toLocaleDateString('fi-FI')} klo ${hourLabel(target.hour)}` : `${label} · Ei mittauksia valittuna päivänä`;
       button.setAttribute('aria-label', description);
       button.title = description;
